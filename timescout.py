@@ -271,6 +271,7 @@ class UsageWidget:
         self.root = root
         self.topmost = True
         self.polling = True
+        self._spinning = False
 
         root.title("TimeScout")
         root.overrideredirect(True)
@@ -307,6 +308,8 @@ class UsageWidget:
 
         self._btn(bar, "✕", self._quit).pack(side="right", padx=(0, 6))
         self._btn(bar, "–", self._minimise).pack(side="right")
+        self._refresh_btn = self._btn(bar, "↻", self._refresh_async)
+        self._refresh_btn.pack(side="right")
         self.clock = tk.Label(bar, text="", font=FONT_TINY, fg=TEXT_DIM, bg=BG)
         self.clock.pack(side="right", padx=6)
 
@@ -411,11 +414,26 @@ class UsageWidget:
                 time.sleep(1)
 
     def _refresh_async(self):
+        self._refresh_btn.config(fg=ACCENT)
+        self._spinning = True
+        self._spin()
         threading.Thread(target=self._do_fetch, daemon=True).start()
+
+    _SPIN_FRAMES = ("↻", "↺")
+    _spin_idx = 0
+
+    def _spin(self):
+        if not self._spinning:
+            self._refresh_btn.config(text="↻", fg=TEXT_SEC)
+            return
+        self._refresh_btn.config(text=self._SPIN_FRAMES[self._spin_idx % 2])
+        self._spin_idx += 1
+        self.root.after(300, self._spin)
 
     def _do_fetch(self):
         token, err = load_token()
         if err:
+            self._post(self._stop_spin, None)
             self._post(self._show_error, err)
             return
         try:
@@ -425,13 +443,20 @@ class UsageWidget:
             msg = f"HTTP {code}"
             if code == 401:
                 msg = "Token expired. Open Claude Code to refresh, then wait a minute."
+            self._post(self._stop_spin, None)
             self._post(self._show_error, msg)
         except requests.exceptions.RequestException as e:
+            self._post(self._stop_spin, None)
             self._post(self._show_error, f"Network error:\n{e}")
         except Exception as e:
+            self._post(self._stop_spin, None)
             self._post(self._show_error, f"Error: {e}")
         else:
+            self._post(self._stop_spin, None)
             self._post(self._apply, data)
+
+    def _stop_spin(self, _=None):
+        self._spinning = False
 
     def _post(self, fn, arg):
         try:
