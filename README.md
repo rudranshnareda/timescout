@@ -1,15 +1,15 @@
-# Claude Usage Widget
+# TimeScout
 
-A tiny always-on-top desktop widget that shows your live **Claude Code** usage —
-the 5-hour session window, the weekly (all-models) window, and per-model weekly
-windows when your plan exposes them.
+A tiny always-on-top desktop widget that scouts your remaining **Claude Code**
+usage at a glance — the 5-hour session window, the weekly (all-models) window,
+and per-model weekly windows when your plan exposes them.
 
 It reads the OAuth token Claude Code already stores on your machine
 (`~/.claude/.credentials.json`) and polls Anthropic's usage endpoint every
 60 seconds. **Your token is never stored, logged, or sent anywhere except
 `api.anthropic.com`.**
 
-![widget](docs/screenshot.png)
+![TimeScout](docs/screenshot.png)
 
 ## Features
 
@@ -26,19 +26,19 @@ It reads the OAuth token Claude Code already stores on your machine
 
 ```powershell
 pip install -r requirements.txt
-python claude_usage_widget.py
+python timescout.py
 ```
 
 Quick check without the GUI:
 
 ```powershell
-python claude_usage_widget.py --once
+python timescout.py --once
 ```
 
 ## Download the .exe
 
-Grab `ClaudeUsageWidget.exe` from the [Releases](../../releases) page, or build
-it yourself (see below). No Python install required to run the `.exe`.
+Grab `TimeScout.exe` from the [Releases](../../releases) page, or build it
+yourself (see below). No Python install required to run the `.exe`.
 
 ## Build the .exe yourself
 
@@ -47,8 +47,8 @@ it yourself (see below). No Python install required to run the `.exe`.
 # or:  build.bat
 ```
 
-The standalone executable lands in `dist\ClaudeUsageWidget.exe`. To use a custom
-icon, drop an `icon.ico` next to the script before building.
+The standalone executable lands in `dist\TimeScout.exe`. To use a custom icon,
+drop an `icon.ico` next to the script before building.
 
 ## Releasing on GitHub (auto-build)
 
@@ -77,12 +77,12 @@ download the `.exe` from the build artifacts.
 a countdown. Buckets your plan doesn't track come back `null` and are hidden.
 
 If the token has expired, the widget shows a notice — open Claude Code once to
-refresh it, and the widget picks up the new token on the next poll (it re-reads
+refresh it, and TimeScout picks up the new token on the next poll (it re-reads
 the credentials file every minute).
 
 ## Notes
 
-- Windows-first (the minimise-to-taskbar trick uses Win32). The widget still
+- Windows-first (the minimise-to-taskbar trick uses Win32). TimeScout still
   runs on macOS/Linux; minimise falls back to the standard `iconify`.
 - The usage endpoint is an undocumented endpoint used by Claude Code itself;
   Anthropic may change it without notice.

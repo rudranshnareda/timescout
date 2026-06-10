@@ -1,7 +1,7 @@
 @echo off
 REM Build a standalone Windows .exe with PyInstaller.
 REM   build.bat
-REM Output: dist\ClaudeUsageWidget.exe
+REM Output: dist\TimeScout.exe
 setlocal
 
 python -m pip install --upgrade pip
@@ -11,11 +11,11 @@ if errorlevel 1 goto :err
 set ICON=
 if exist icon.ico set ICON=--icon icon.ico
 
-pyinstaller --noconfirm --clean --onefile --windowed --name ClaudeUsageWidget %ICON% claude_usage_widget.py
+pyinstaller --noconfirm --clean --onefile --windowed --name TimeScout %ICON% timescout.py
 if errorlevel 1 goto :err
 
 echo.
-echo Built: dist\ClaudeUsageWidget.exe
+echo Built: dist\TimeScout.exe
 goto :eof
 
 :err

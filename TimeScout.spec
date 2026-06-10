@@ -2,7 +2,7 @@
 
 
 a = Analysis(
-    ['claude_usage_widget.py'],
+    ['timescout.py'],
     pathex=[],
     binaries=[],
     datas=[],
@@ -22,7 +22,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name='ClaudeUsageWidget',
+    name='TimeScout',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

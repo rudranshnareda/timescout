@@ -1,6 +1,6 @@
 """
-Claude Usage Widget
-===================
+TimeScout
+=========
 
 A small always-on-top desktop widget that shows your live Claude Code usage:
 the 5-hour session window, the weekly (all-models) window, and per-model
@@ -20,9 +20,9 @@ Window controls
 
 CLI
 ---
-    python claude_usage_widget.py            # run the widget
-    python claude_usage_widget.py --once     # print usage to stdout and exit
-    python claude_usage_widget.py --selftest # build UI, fetch once, exit (CI smoke test)
+    python timescout.py            # run the widget
+    python timescout.py --once     # print usage to stdout and exit
+    python timescout.py --selftest # build UI, fetch once, exit (CI smoke test)
 
 Requires: requests  (pip install -r requirements.txt)
 """
@@ -272,7 +272,7 @@ class UsageWidget:
         self.topmost = True
         self.polling = True
 
-        root.title("Claude Usage")
+        root.title("TimeScout")
         root.overrideredirect(True)
         root.attributes("-topmost", True)
         root.attributes("-alpha", 0.95)
@@ -302,7 +302,7 @@ class UsageWidget:
         self.dot = tk.Label(bar, text="●", font=("Segoe UI", 8),
                             fg=TEXT_DIM, bg=BG)
         self.dot.pack(side="left", padx=(10, 4))
-        tk.Label(bar, text="Claude usage", font=FONT_TITLE,
+        tk.Label(bar, text="TimeScout", font=FONT_TITLE,
                  fg=TEXT_PRI, bg=BG).pack(side="left")
 
         self._btn(bar, "✕", self._quit).pack(side="right", padx=(0, 6))
@@ -493,7 +493,7 @@ def run_once():
             print(f"  {name:<22} n/a")
         else:
             print(f"  {name:<22} {pct:5.1f}%   resets in {fmt_reset(b.get('reset'))}")
-    print("Claude usage")
+    print("TimeScout — Claude usage")
     line("Session (5-hour)", data["five_hour"])
     line("Weekly (all models)", data["seven_day"])
     line("Weekly (Opus)", data["seven_day_opus"])

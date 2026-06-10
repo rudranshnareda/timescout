@@ -1,6 +1,6 @@
 # Build a standalone Windows .exe with PyInstaller.
 #   PS> .\build.ps1
-# Output: dist\ClaudeUsageWidget.exe
+# Output: dist\TimeScout.exe
 $ErrorActionPreference = "Stop"
 
 python -m pip install --upgrade pip
@@ -10,9 +10,9 @@ $iconArg = @()
 if (Test-Path "icon.ico") { $iconArg = @("--icon", "icon.ico") }
 
 pyinstaller --noconfirm --clean --onefile --windowed `
-    --name ClaudeUsageWidget `
+    --name TimeScout `
     @iconArg `
-    claude_usage_widget.py
+    timescout.py
 
 Write-Host ""
-Write-Host "Built: dist\ClaudeUsageWidget.exe" -ForegroundColor Green
+Write-Host "Built: dist\TimeScout.exe" -ForegroundColor Green
