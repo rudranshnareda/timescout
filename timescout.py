@@ -272,6 +272,7 @@ class UsageWidget:
         self.topmost = True
         self.polling = True
         self._spinning = False
+        self._last_fetch = 0.0
 
         root.title("TimeScout")
         root.overrideredirect(True)
@@ -412,6 +413,12 @@ class UsageWidget:
                 time.sleep(1)
 
     def _refresh_async(self):
+        # Ignore clicks while a fetch is already in flight, and enforce a short
+        # cooldown so rapid clicks don't hammer the API into a 429.
+        now = time.monotonic()
+        if self._spinning or (now - self._last_fetch) < 3:
+            return
+        self._last_fetch = now
         self._refresh_btn.config(fg=ACCENT)
         self._spinning = True
         self._spin()
@@ -441,6 +448,8 @@ class UsageWidget:
             msg = f"HTTP {code}"
             if code == 401:
                 msg = "Token expired. Open Claude Code to refresh, then wait a minute."
+            elif code == 429:
+                msg = "Rate limited — too many requests. Showing last data; will retry."
             self._post(self._stop_spin, None)
             self._post(self._show_error, msg)
         except requests.exceptions.RequestException as e:
