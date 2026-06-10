@@ -49,6 +49,7 @@ CREDENTIALS_PATH = os.path.expanduser("~/.claude/.credentials.json")
 USAGE_URL = "https://api.anthropic.com/api/oauth/usage"
 OAUTH_BETA = "oauth-2025-04-20"
 POLL_INTERVAL = 60          # seconds between refreshes
+MAX_BACKOFF = 8 * 60        # cap for the exponential backoff after a 429
 HTTP_TIMEOUT = 15           # seconds
 
 IS_WIN = sys.platform.startswith("win")
@@ -273,6 +274,8 @@ class UsageWidget:
         self.polling = True
         self._spinning = False
         self._last_fetch = 0.0
+        self._have_data = False
+        self._poll_delay = POLL_INTERVAL
 
         root.title("TimeScout")
         root.overrideredirect(True)
@@ -407,7 +410,9 @@ class UsageWidget:
     def _poll_loop(self):
         while self.polling:
             self._do_fetch()
-            for _ in range(POLL_INTERVAL):
+            # _poll_delay grows on 429 (backoff) and resets to POLL_INTERVAL
+            # on the next success.
+            for _ in range(int(self._poll_delay)):
                 if not self.polling:
                     return
                 time.sleep(1)
@@ -438,29 +443,30 @@ class UsageWidget:
     def _do_fetch(self):
         token, err = load_token()
         if err:
-            self._post(self._stop_spin, None)
-            self._post(self._show_error, err)
+            self._finish(self._hard_error, err)
             return
         try:
             data = normalise(fetch_usage(token))
         except requests.exceptions.HTTPError as e:
             code = e.response.status_code
-            msg = f"HTTP {code}"
             if code == 401:
-                msg = "Token expired. Open Claude Code to refresh, then wait a minute."
+                self._finish(self._hard_error,
+                             "Token expired. Open Claude Code to refresh, then wait a minute.")
             elif code == 429:
-                msg = "Rate limited — too many requests. Showing last data; will retry."
-            self._post(self._stop_spin, None)
-            self._post(self._show_error, msg)
-        except requests.exceptions.RequestException as e:
-            self._post(self._stop_spin, None)
-            self._post(self._show_error, f"Network error:\n{e}")
+                self._finish(self._soft_error, "Rate limited — backing off, will retry.")
+            else:
+                self._finish(self._hard_error, f"HTTP {code}")
+        except requests.exceptions.RequestException:
+            self._finish(self._soft_error, "Network unavailable — will retry.")
         except Exception as e:
-            self._post(self._stop_spin, None)
-            self._post(self._show_error, f"Error: {e}")
+            self._finish(self._hard_error, f"Error: {e}")
         else:
-            self._post(self._stop_spin, None)
-            self._post(self._apply, data)
+            self._finish(self._apply, data)
+
+    def _finish(self, fn, arg):
+        """Always stop the spinner, then run the result handler on the UI thread."""
+        self._post(self._stop_spin, None)
+        self._post(fn, arg)
 
     def _stop_spin(self, _=None):
         self._spinning = False
@@ -473,6 +479,8 @@ class UsageWidget:
 
     # ---- render ----
     def _apply(self, data):
+        self._have_data = True
+        self._poll_delay = POLL_INTERVAL   # recovered — back to normal cadence
         self.err_lbl.pack_forget()
         self.b_session.update(data["five_hour"])
         self.b_weekly.update(data["seven_day"])
@@ -499,9 +507,22 @@ class UsageWidget:
         self.dot.config(fg=GREEN)
         self.clock.config(text=datetime.now().strftime("%H:%M"))
 
-    def _show_error(self, msg):
+    def _soft_error(self, msg):
+        """Transient failure (rate limit / network). Back off so we stop poking
+        the API, and don't bury the numbers we already have under a red banner —
+        just tint the status dot amber to flag that the data is stale."""
+        self._poll_delay = min(self._poll_delay * 2, MAX_BACKOFF)
+        self.dot.config(fg=BAR_WARN)
+        if self._have_data:
+            self.err_lbl.pack_forget()
+        else:
+            self.err_lbl.config(text=msg, fg=BAR_WARN)
+            self.err_lbl.pack(fill="x", pady=(8, 0))
+
+    def _hard_error(self, msg):
+        """Failure that needs the user's attention (expired token, bad creds)."""
         self.dot.config(fg=RED)
-        self.err_lbl.config(text=msg)
+        self.err_lbl.config(text=msg, fg=RED)
         self.err_lbl.pack(fill="x", pady=(8, 0))
 
     def _quit(self):
