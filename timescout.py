@@ -303,8 +303,9 @@ class UsageWidget:
         self.dot = tk.Label(bar, text="●", font=("Segoe UI", 8),
                             fg=TEXT_DIM, bg=BG)
         self.dot.pack(side="left", padx=(10, 4))
-        tk.Label(bar, text="TimeScout", font=FONT_TITLE,
-                 fg=TEXT_PRI, bg=BG).pack(side="left")
+        title = tk.Label(bar, text="TimeScout", font=FONT_TITLE,
+                         fg=TEXT_PRI, bg=BG)
+        title.pack(side="left")
 
         self._btn(bar, "✕", self._quit).pack(side="right", padx=(0, 6))
         self._btn(bar, "–", self._minimise).pack(side="right")
@@ -313,14 +314,11 @@ class UsageWidget:
         self.clock = tk.Label(bar, text="", font=FONT_TINY, fg=TEXT_DIM, bg=BG)
         self.clock.pack(side="right", padx=6)
 
-        for w in (bar,):
+        # Drag-to-move: bind ONLY the bar background and the two passive labels.
+        # Never the action buttons, or their click handlers get clobbered.
+        for w in (bar, self.dot, title):
             w.bind("<ButtonPress-1>", self._drag_start)
             w.bind("<B1-Motion>", self._drag_move)
-        # also allow dragging from the title labels
-        for child in bar.winfo_children():
-            if isinstance(child, tk.Label) and child not in (self.clock,):
-                child.bind("<ButtonPress-1>", self._drag_start)
-                child.bind("<B1-Motion>", self._drag_move)
 
         tk.Frame(shell, bg=BORDER, height=1).pack(fill="x")
 
