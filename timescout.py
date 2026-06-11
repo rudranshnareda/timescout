@@ -276,6 +276,7 @@ class UsageWidget:
         self._last_fetch = 0.0
         self._have_data = False
         self._poll_delay = POLL_INTERVAL
+        self._cooldown_until = 0.0   # monotonic time before which we must not poll
 
         root.title("TimeScout")
         root.overrideredirect(True)
@@ -418,10 +419,11 @@ class UsageWidget:
                 time.sleep(1)
 
     def _refresh_async(self):
-        # Ignore clicks while a fetch is already in flight, and enforce a short
-        # cooldown so rapid clicks don't hammer the API into a 429.
+        # Ignore clicks while a fetch is in flight, during a server-mandated
+        # rate-limit cooldown, or within a short anti-mash window — so manual
+        # clicks can never re-trigger (and prolong) a 429.
         now = time.monotonic()
-        if self._spinning or (now - self._last_fetch) < 3:
+        if self._spinning or now < self._cooldown_until or (now - self._last_fetch) < 3:
             return
         self._last_fetch = now
         self._refresh_btn.config(fg=ACCENT)
@@ -453,7 +455,12 @@ class UsageWidget:
                 self._finish(self._hard_error,
                              "Token expired. Open Claude Code to refresh, then wait a minute.")
             elif code == 429:
-                self._finish(self._soft_error, "Rate limited — backing off, will retry.")
+                retry_after = e.response.headers.get("retry-after")
+                try:
+                    wait = int(float(retry_after))
+                except (TypeError, ValueError):
+                    wait = 0
+                self._finish(self._rate_limited, wait)
             else:
                 self._finish(self._hard_error, f"HTTP {code}")
         except requests.exceptions.RequestException:
@@ -481,6 +488,7 @@ class UsageWidget:
     def _apply(self, data):
         self._have_data = True
         self._poll_delay = POLL_INTERVAL   # recovered — back to normal cadence
+        self._cooldown_until = 0.0
         self.err_lbl.pack_forget()
         self.b_session.update(data["five_hour"])
         self.b_weekly.update(data["seven_day"])
@@ -507,11 +515,30 @@ class UsageWidget:
         self.dot.config(fg=GREEN)
         self.clock.config(text=datetime.now().strftime("%H:%M"))
 
+    def _rate_limited(self, wait):
+        """429 handler. Honor the server's Retry-After exactly if it gave one;
+        otherwise fall back to exponential backoff. Crucially, we then wait the
+        FULL period before the next request — retrying early just resets the
+        server's clock and keeps us locked out."""
+        if wait and wait > 0:
+            self._poll_delay = min(wait + 5, 3600)   # honor server, cap at 1h
+            mins = max(1, round(self._poll_delay / 60))
+            msg = f"Rate limited by the API — auto-retries in ~{mins} min."
+        else:
+            self._poll_delay = min(self._poll_delay * 2, MAX_BACKOFF)
+            msg = "Rate limited — backing off, will retry."
+        self._cooldown_until = time.monotonic() + self._poll_delay
+        self._soft_indicator(msg)
+
     def _soft_error(self, msg):
-        """Transient failure (rate limit / network). Back off so we stop poking
-        the API, and don't bury the numbers we already have under a red banner —
-        just tint the status dot amber to flag that the data is stale."""
+        """Transient network failure. Back off and flag staleness; don't bury
+        numbers we already have."""
         self._poll_delay = min(self._poll_delay * 2, MAX_BACKOFF)
+        self._soft_indicator(msg)
+
+    def _soft_indicator(self, msg):
+        """Amber dot for a soft failure. Only show the text banner if we have
+        no numbers to display yet; otherwise keep the existing data on screen."""
         self.dot.config(fg=BAR_WARN)
         if self._have_data:
             self.err_lbl.pack_forget()
