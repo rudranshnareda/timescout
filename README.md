@@ -9,8 +9,6 @@ It reads the OAuth token Claude Code already stores on your machine
 60 seconds. **Your token is never stored, logged, or sent anywhere except
 `api.anthropic.com`.**
 
-![TimeScout](docs/screenshot.png)
-
 ## Features
 
 - **Live usage bars** for session (5h), weekly all-models, and weekly Opus/Sonnet.
